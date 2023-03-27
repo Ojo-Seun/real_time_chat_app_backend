@@ -1,0 +1,68 @@
+{
+  "name": "video_chat",
+  "version": "1.0.0",
+  "description": "Web Video Chat App",
+  "main": "index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "npm run build && node lib/index.js",
+    "build": "tsc -p .",
+    "dev": "ts-node-dev --respawn src/index.ts"
+  },
+  "keywords": [
+    "Socket.io",
+    "CI/CD"
+  ],
+  "author": "Ojo Seun",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.3.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "express-async-handler": "^1.2.0",
+    "jsonwebtoken": "^9.0.0",
+    "mongoose": "^7.0.1",
+    "socket.io": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.0",
+    "@types/express": "^4.17.17",
+    "@types/jsonwebtoken": "^9.0.1",
+    "@types/mongoose": "^5.11.97",
+    "@types/node": "^18.15.0",
+    "bcrypt": "^5.1.0",
+    "eslint": "^8.36.0",
+    "prettier": "^2.8.4",
+    "ts-node-dev": "^2.0.0"
+  },
+  "eslintConfig": {
+    "parseOptions": {
+      "ecmaVersion": 6
+    },
+    "extends": [
+      "eslint:recommended",
+      "plugin:prettier/recommended"
+    ],
+    "plugins": [
+      "prettier"
+    ],
+    "env": {
+      "node": true,
+      "typescript": true,
+      "es6": true,
+      "jest": true,
+      "prettier": true,
+      "supertest": true
+    },
+    "rules": {
+      "prettier/prettier": "warn",
+      "eqeqeq": "warn"
+    }
+  },
+  "prettier": {
+    "singleQuote": false,
+    "semi": false,
+    "printWidth": 200
+  }
+}

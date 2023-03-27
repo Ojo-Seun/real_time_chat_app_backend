@@ -1,0 +1,33 @@
+connection - Triggered when a client connects to the server.
+
+disconnect - Triggered when a client disconnects from the server.
+
+error - Triggered when an error occurs.
+
+message - Triggered when a client sends a message.
+
+connect - Triggered when a client successfully connects to the server.
+
+disconnecting - Triggered when a client begins to disconnect from the server.
+
+newListener - Triggered when a new event listener is added.
+
+removeListener - Triggered when an event listener is removed.
+
+ping - Triggered when the server sends a ping to a client.
+
+pong - Triggered when a client sends a pong back to the server.
+
+reconnect - Triggered when a client successfully reconnects to the server after a disconnection.
+
+reconnecting - Triggered when a client begins to reconnect to the server after a disconnection.
+
+reconnect_attempt - Triggered when a client attempts to reconnect to the server after a disconnection.
+
+reconnect_error - Triggered when a client encounters an error while attempting to reconnect to the server.
+
+reconnect_failed - Triggered when a client fails to reconnect to the server after a disconnection.
+
+connect_error - Triggered when a client encounters an error while attempting to connect to the server.
+
+connect_timeout - Triggered when a client exceeds the connection timeout limit while 
