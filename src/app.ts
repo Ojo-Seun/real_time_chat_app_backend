@@ -1,18 +1,21 @@
 import express, { NextFunction, Response, Request } from "express"
-import type { ServerToClient, ClientToServer } from "./types"
+import type { ServerToClient, ClientToServer, UserTypes, OnlineUser, RoomTypes } from "./types"
 import http from "http"
 import { Server } from "socket.io"
-import path from "path"
 import dotenv from "dotenv"
 import UserRouter from "./Users/User.routers"
+import UserModel from "./Users/User.schema"
+import User from "./Users/User.controller"
 import cors from "cors"
 import mongoose from "mongoose"
 import jwt from "jsonwebtoken"
+import Room from "./Rooms/Room.controller"
+
 dotenv.config()
 
 const app = express()
 app.use(cors())
-app.use(express.json())
+app.use(express.json({ limit: "50mb" }))
 app.use(express.urlencoded({ extended: true }))
 app.use("/api", UserRouter)
 
@@ -35,10 +38,13 @@ const io = new Server<ClientToServer, ServerToClient>(httpServer, {
   },
 })
 
-io.use((socket, next) => {
-  const {
-    auth: { token },
-  } = socket.handshake
+io.use(async (socket, next) => {
+  const { auth } = socket.handshake
+  const { token, userId } = auth
+  const user = await User.getUserById(userId)
+  if (!user?.userId) {
+    next(new Error("Please Sign Up"))
+  }
   if (token) {
     jwt.verify(token, process.env.JWT_SECRET!, (err: jwt.VerifyErrors | null) => {
       if (err) {
@@ -54,17 +60,31 @@ io.use((socket, next) => {
 
 io.on("connection", (socket) => {
   console.log(`A user connected`)
-  socket.on("join_room", ({ username, roomName }) => {
-    socket.join("General")
-    socket.broadcast.emit("alert", { message: `${username} joined the ${roomName} room` })
+  socket.on("join_room", async ({ username, userId, roomName, description, image, email }) => {
+    const room = new Room(roomName, description, userId)
+    const onlineUsers = User.addOnlineUser({ username, userId, image, sessionId: socket.id })
+    let allRooms = await room.addRoom()
+    const roomsConnected = room.getConnectedRooms(userId)
+    const allUsers = await User.getAllUsers()
+    const initialRoomMessages = await room.getAllMessagesInAroom(roomName)
+
+    socket.join(roomName)
+    socket.broadcast.to(roomName).emit("alert", { message: `${username} Is Online` })
+    io.emit("all_users", allUsers)
+    io.emit("online_users", onlineUsers)
+    io.emit("all_rooms", allRooms)
+    socket.emit("rooms_connected", roomsConnected)
+    socket.emit("initial_room_messages", initialRoomMessages)
   })
 
   socket.on("send_message", (message) => {
-    socket.to(message.to).emit("recieve_message", message)
+    Room.addMessageToARoom(message.to, message)
+    socket.broadcast.to(message.to).emit("recieve_message", message)
   })
 
   socket.on("disconnect", () => {
     console.log("User disconnet")
+    socket.broadcast.emit("alert", { message: "A User Left" })
   })
 })
 /*

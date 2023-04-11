@@ -1,53 +1,30 @@
-import { UserTypes } from "../types"
+import { UserTypes, OnlineUser } from "../types"
 import UserModel from "./User.schema"
 class User {
-  username: string
-  userId: string = ""
-  email: string
-  sessionId: string
-  generalRoomId: string
+  private static onlineUsers: OnlineUser[] = []
 
-  constructor(username: string, email: string, sessionId: string, generalRoomId: string) {
-    this.email = email
-    this.username = username
-    this.sessionId = sessionId
-    this.generalRoomId = generalRoomId
-  }
-
-  async addUser(): Promise<boolean> {
-    const isExist = await UserModel.findOne({ email: this.email })
-
-    if (isExist?.email) {
-      throw new Error(`${this.email} already exist`)
+  static addOnlineUser(userIfo: OnlineUser): OnlineUser[] {
+    const user = this.onlineUsers.find((x) => x.userId === userIfo.userId)
+    if (!user) {
+      this.onlineUsers.push(userIfo)
     }
 
-    const user: UserTypes = {
-      username: this.username,
-      email: this.email,
-      sessionId: this.sessionId,
-      userRoomsId: [this.generalRoomId],
-    }
-
-    UserModel.create(user)
-      .then((res) => {
-        return true
-      })
-      .catch((err) => {
-        if (err) throw new Error(err.message)
-        return ""
-      })
-
-    return true
+    return this.onlineUsers
   }
-
   static async getUserById(userId: string) {
-    const user = await UserModel.findById({ userId: userId })
-    return user ?? null
+    const user = await UserModel.findOne({ userId: userId }, { password: 0 })
+    return user
   }
 
-  static async getAllUsers() {
-    const allUsers = await UserModel.find({})
-    return allUsers || null
+  static async getAllUsers(): Promise<Pick<UserTypes, "email" | "image" | "userId" | "username">[]> {
+    const allUsers: Pick<UserTypes, "email" | "userId" | "username" | "image">[] = await UserModel.find({}, { email: 1, image: 1, username: 1, userId: 1 })
+    return allUsers || []
+  }
+
+  static removeUser(userId: string) {
+    const user: OnlineUser = this.onlineUsers.find((x) => x.userId === userId)
+    const onlineUsers = this.onlineUsers.filter((x) => x.userId === userId)
+    return { user, onlineUsers }
   }
 }
 

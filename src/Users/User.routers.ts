@@ -39,7 +39,7 @@ router.post(
           email,
           userId,
           image,
-          token: generateToken({ username, userId: userId.toString("hex"), email, image }),
+          token: generateToken({ username, userId: userId, email, image }),
         })
       })
       .catch((err) => {
@@ -69,7 +69,7 @@ router.post(
         userId,
         email,
         image,
-        token: generateToken({ username, email, image, userId: userId.toString("hex") }),
+        token: generateToken({ username, email, image, userId: userId }),
       })
     } else {
       throw new Error("Invalid email")

@@ -1,10 +1,10 @@
 import mongoose, { Schema, model } from "mongoose"
 
-export const UserSchema = new Schema({
-  userId: { type: Schema.Types.ObjectId, required: true, default: new mongoose.Types.ObjectId() },
+const UserSchema = new Schema({
+  userId: { type: String, required: true, default: new mongoose.Types.ObjectId(), unique: true },
   username: { type: String, required: true },
-  email: { type: String, required: true },
-  userRoomsId: { type: [String], required: true },
+  email: { type: String, required: true, unique: true },
+  userRoomNames: { type: [String], required: true },
   image: { type: String, required: true },
   password: { type: String, required: true },
 })
