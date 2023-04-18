@@ -1,4 +1,5 @@
 interface UserTypes {
+  name: string
   username: string
   email: string
   roomsConnected: string[]
@@ -20,9 +21,9 @@ interface MessageTypes {
 
 interface RoomTypes {
   name: string
-  description?: string
+  logo?: string
   userId: string
-  users: Partial<UserTypes>[]
+  users: Pick<UserTypes, "username" | "image" | "userId" | "sessionId">[]
   messages: MessageTypes[]
   roomId?: string
 }
@@ -35,12 +36,14 @@ interface ServerToClient {
   all_rooms: (allRooms: any[]) => void
   rooms_connected: (roomsConnected: any[]) => void
   initial_room_messages: (messages: MessageTypes[]) => void
+  room_info: (room: Pick<RoomTypes, "messages" | "roomId" | "name" | "users">) => void
+  disconnect: () => void
 }
 
 interface ClientToServer {
-  join_room: ({ username: string, userId: string, image: string, roomName: string, email: string, description: string }) => void
-  disconnected: (obj: { userId: string; username: string }) => void
+  join_room: ({ userId: string, roomName: string }) => void
+  leave_room: ({ userId: string, roomName: string }) => void
   send_message: (message: MessageTypes) => void
+  join_server: ({ username: string, userId: string, image: string }) => void
 }
-
 export { UserTypes, MessageTypes, RoomTypes, ServerToClient, ClientToServer, OnlineUser }

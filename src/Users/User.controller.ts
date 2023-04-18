@@ -1,19 +1,25 @@
 import { UserTypes, OnlineUser } from "../types"
+import OnlineUserModel from "./OnlineUsers.schema"
 import UserModel from "./User.schema"
 class User {
-  private static onlineUsers: OnlineUser[] = []
-
-  static addOnlineUser(userIfo: OnlineUser): OnlineUser[] {
-    const user = this.onlineUsers.find((x) => x.userId === userIfo.userId)
-    if (!user) {
-      this.onlineUsers.push(userIfo)
+  static async addOnlineUser(userIfo: OnlineUser): Promise<OnlineUser[]> {
+    const user = await OnlineUserModel.findOne({ userId: userIfo.userId })
+    if (!user?.userId) {
+      await OnlineUserModel.create(userIfo).catch((err) => {
+        throw new Error(err.message)
+      })
     }
-
-    return this.onlineUsers
+    const onlineUsers = await OnlineUserModel.find({})
+    return onlineUsers
   }
-  static async getUserById(userId: string) {
-    const user = await UserModel.findOne({ userId: userId }, { password: 0 })
-    return user
+  static async getUserById(userId: string): Promise<Pick<UserTypes, "sessionId" | "userId" | "image" | "username">> {
+    const user = await UserModel.findOne({ userId: userId }, { sessionId: 1, userId: 1, image: 1, username: 1 })
+    let result = { sessionId: "", userId: "", image: "", username: "" }
+    if (user?.userId) {
+      const { sessionId, userId, username, image } = user
+      result = { sessionId: sessionId ? sessionId : "", username, userId, image }
+    }
+    return result
   }
 
   static async getAllUsers(): Promise<Pick<UserTypes, "email" | "image" | "userId" | "username">[]> {
@@ -21,10 +27,12 @@ class User {
     return allUsers || []
   }
 
-  static removeUser(userId: string) {
-    const user: OnlineUser = this.onlineUsers.find((x) => x.userId === userId)
-    const onlineUsers = this.onlineUsers.filter((x) => x.userId === userId)
-    return { user, onlineUsers }
+  static async removeOnlineUser(userId: string) {
+    const user: OnlineUser = await OnlineUserModel.findOne({ userId: userId })
+
+    await OnlineUserModel.deleteOne({ userId: userId })
+    const onlineUsers = await OnlineUserModel.find({})
+    return { username: user.username, onlineUsers }
   }
 }
 

@@ -60,31 +60,60 @@ io.use(async (socket, next) => {
 
 io.on("connection", (socket) => {
   console.log(`A user connected`)
-  socket.on("join_room", async ({ username, userId, roomName, description, image, email }) => {
-    const room = new Room(roomName, description, userId)
-    const onlineUsers = User.addOnlineUser({ username, userId, image, sessionId: socket.id })
-    let allRooms = await room.addRoom()
-    const roomsConnected = room.getConnectedRooms(userId)
+  socket.on("join_server", async ({ username, userId, image }) => {
+    if (!userId) return
+    // Create general room if it does not exist
+    const room = new Room("general", userId)
+    const _room = await room.createAroom()
+    // List of all rooms
+    const allRooms = await room.getAllRooms()
+    // List of  rooms a user is in
+    const roomsConnected = await Room.getConnectedRooms(userId)
+    // List of online users
+    const onlineUsers = await User.addOnlineUser({ username, userId, image, sessionId: socket.id })
+    // List of all users
     const allUsers = await User.getAllUsers()
-    const initialRoomMessages = await room.getAllMessagesInAroom(roomName)
+    // Names of rooms the user is connected to before re-connection
+    const roomNames = await Room.getConnectedRoomsName(userId)
+    // Add rooms the user is already connected to socket
+    if (roomNames.length > 0) {
+      console.log("Disconnect")
+      socket.join(roomNames)
+    }
 
-    socket.join(roomName)
-    socket.broadcast.to(roomName).emit("alert", { message: `${username} Is Online` })
+    // emit to all the users including the sender
     io.emit("all_users", allUsers)
     io.emit("online_users", onlineUsers)
     io.emit("all_rooms", allRooms)
+    // emit only to the sockect user
     socket.emit("rooms_connected", roomsConnected)
-    socket.emit("initial_room_messages", initialRoomMessages)
+  })
+
+  socket.on("join_room", async ({ roomName, userId }) => {
+    const { room, username } = await Room.joinAroom(roomName, userId)
+    const roomsConnected = await Room.getConnectedRooms(userId)
+    if (room.roomId && username) {
+      socket.join(roomName)
+      // Emit to all users in a room except the sender
+      socket.to(roomName).emit("alert", { message: `${username} Is Online` })
+      socket.emit("room_info", room)
+      // Emit to all users in a room including the sender
+      io.in(roomName).emit("rooms_connected", roomsConnected)
+    }
   })
 
   socket.on("send_message", (message) => {
     Room.addMessageToARoom(message.to, message)
-    socket.broadcast.to(message.to).emit("recieve_message", message)
+    socket.to(message.to).emit("recieve_message", message)
   })
 
-  socket.on("disconnect", () => {
+  socket.on("disconnect", async () => {
+    const { userId } = socket.handshake.auth
     console.log("User disconnet")
-    socket.broadcast.emit("alert", { message: "A User Left" })
+    const { username, onlineUsers } = await User.removeOnlineUser(userId)
+    const roomNames = await Room.getConnectedRoomsName(userId)
+    socket.broadcast.emit("alert", { message: `${username} left` })
+    socket.to(roomNames).emit("online_users", onlineUsers)
   })
 })
 /*
