@@ -6,8 +6,8 @@ const UserSchema = new Schema({
   username: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
   image: { type: String, required: true },
+  imageName: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  sessionId: String,
 })
 
 const UserModel = model("UserModel", UserSchema)

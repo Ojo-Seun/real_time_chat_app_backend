@@ -4,7 +4,6 @@ import http from "http"
 import { Server } from "socket.io"
 import dotenv from "dotenv"
 import UserRouter from "./Users/User.routers"
-import UserModel from "./Users/User.schema"
 import User from "./Users/User.controller"
 import cors from "cors"
 import mongoose from "mongoose"
@@ -58,82 +57,116 @@ io.use(async (socket, next) => {
   }
 })
 
-io.on("connection", (socket) => {
-  console.log(`A user connected`)
-  socket.on("join_server", async ({ username, userId, image }) => {
-    if (!userId) return
+let timer: any
+io.on("connection", async (socket) => {
+  const { userId, username } = socket.handshake.auth
+
+  const handleDisconnection = async () => {
+    if (!userId) throw new Error("No userId")
+    const { username, onlineUsers } = await User.removeOnlineUser(userId)
+    const roomNames = await Room.getConnectedRoomsName(userId)
+    socket.to(roomNames).emit("alert", { message: `${username} left` })
+    socket.to(roomNames).emit("online_users", onlineUsers)
+    console.log(`${username} disconnect`)
+
+    // Remove a user from all the rooms after user disconnect
+    roomNames.forEach((name) => {
+      socket.leave(name)
+    })
+  }
+  /////////////////////////////
+  if (userId) {
+    console.log(`${username} connected`)
+    // Names of rooms the user is connected to before re-connection
+    const roomNames = await Room.getConnectedRoomsName(userId)
+    // Add user is the is connected to before disconnection
+    if (roomNames.length > 0) {
+      socket.join(roomNames)
+    }
+  }
+  /////////////////////////////
+
+  socket.on("join_server", async ({ username, userId, imageName }, cb) => {
+    console.log(`${username} joined server`)
+    const userInfo: { [key: string]: string } = { username, userId, imageName }
+    for (let key in userInfo) {
+      if (!userInfo[key]) {
+        throw new Error(`No ${userInfo[key]} provided`)
+      }
+    }
     // Create general room if it does not exist
     const room = new Room("general", userId)
     const _room = await room.createAroom()
     // List of all rooms
-    const allRooms = await room.getAllRooms()
+    const allRooms = await Room.getAllRooms()
     // List of  rooms a user is in
     const roomsConnected = await Room.getConnectedRooms(userId)
     // List of online users
-    const onlineUsers = await User.addOnlineUser({ username, userId, image, sessionId: socket.id })
+    const onlineUsers = await User.addOnlineUser({ username, userId, imageName })
     // List of all users
     const allUsers = await User.getAllUsers()
-    // Names of rooms the user is connected to before re-connection
-    const roomNames = await Room.getConnectedRoomsName(userId)
-    // Add rooms the user is already connected to socket
-    if (roomNames.length > 0) {
-      console.log("Disconnect")
-      socket.join(roomNames)
-    }
+    // Image of the last joined user
+    const newUserImage = await User.getUserImage(userId)
+    // Images of all the users
+    const allUsersImages = await User.getAllUsersImages(userId)
 
-    // emit to all the users including the sender
+    // emit only to the sockect user
+    cb(roomsConnected, allUsersImages)
+    //emit to all the clients
+    io.emit("all_rooms", allRooms)
     io.emit("all_users", allUsers)
     io.emit("online_users", onlineUsers)
-    io.emit("all_rooms", allRooms)
-    // emit only to the sockect user
-    socket.emit("rooms_connected", roomsConnected)
+    socket.broadcast.emit("newUserImage", newUserImage)
   })
 
-  socket.on("join_room", async ({ roomName, userId }) => {
+  socket.on("join_room", async ({ roomName, userId }, cb) => {
+    if (!userId || !roomName) throw new Error("No userId or room name")
     const { room, username } = await Room.joinAroom(roomName, userId)
     const roomsConnected = await Room.getConnectedRooms(userId)
+    const allRooms = await Room.getAllRooms()
     if (room.roomId && username) {
       socket.join(roomName)
+      // Emit only to sender
+      cb(room, roomsConnected)
       // Emit to all users in a room except the sender
       socket.to(roomName).emit("alert", { message: `${username} Is Online` })
-      socket.emit("room_info", room)
       // Emit to all users in a room including the sender
-      io.in(roomName).emit("rooms_connected", roomsConnected)
+      io.in(roomName).emit("all_rooms", allRooms)
     }
   })
 
-  socket.on("send_message", (message) => {
+  socket.on("leave_room", async ({ roomName, userId }, cb) => {
+    if (!userId || !roomName) throw new Error("No userId or room name")
+    // Remove user from room database
+    const username = await Room.leaveAroom(roomName, userId)
+    if (username) {
+      const allRooms = await Room.getAllRooms()
+      const roomsConnected = await Room.getConnectedRooms(userId)
+      socket.to(roomName).emit("alert", { message: `${username} has left this room` })
+      io.in(roomName).emit("all_rooms", allRooms)
+      cb(roomsConnected)
+      // Remove user from room in socket.io
+      socket.leave(roomName)
+    }
+  })
+
+  socket.on("message", (message) => {
     Room.addMessageToARoom(message.to, message)
-    socket.to(message.to).emit("recieve_message", message)
+    socket.to(message.to).emit("message", message)
   })
 
-  socket.on("disconnect", async () => {
-    const { userId } = socket.handshake.auth
-    console.log("User disconnet")
-    const { username, onlineUsers } = await User.removeOnlineUser(userId)
-    const roomNames = await Room.getConnectedRoomsName(userId)
-    socket.broadcast.emit("alert", { message: `${username} left` })
-    socket.to(roomNames).emit("online_users", onlineUsers)
+  socket.on("room_messages", async (roomName) => {
+    if (!roomName) throw new Error("No room name")
+    const messages = await Room.getRoomMessages(roomName)
+    socket.emit("initial_room_messages", messages)
   })
-})
-/*
+
   socket.on("disconnect", () => {
-    const { username, room } = users[clientId]
-    socket.to(room).emit("user left", { username, room })
-    delete users[clientId]
-    io.to(room).emit("room users", getUsersInRoom(room))
+    timer = setTimeout(handleDisconnection, 1000)
   })
 
-  const getUsersInRoom = (room: string) => {
-    const usersInRoom = []
-    for (const [id, user] of Object.entries(users)) {
-      if (user.room === room) {
-        usersInRoom.push(user.username)
-      }
-    }
-    return usersInRoom
-  }
-  */
+  clearTimeout(timer)
+})
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   const status = err.name && err.name === "validationError" ? 400 : 500

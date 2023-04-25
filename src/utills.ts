@@ -14,6 +14,7 @@ const RegExP = new Map([
   ["email", /^[a-zA-Z0-9_]+@[a-z]+\.[a-z]{2,3}(\.[a-z]{2,3})?$/],
   ["password", psw],
   ["image", /data:([-\w]+\/[-+\w.]+)?(;?\w+=[-\w]+)*(;base64)?,.*/gu],
+  ["imageName", /[^\s]+(.*?).(jpg|jpeg|png|gif|JPG|JPEG|PNG|GIF|svg|SVG)$/],
 ])
 
 const validateInput = async (name: string, value: string) => {

@@ -6,14 +6,13 @@ const MessageSchema = new Schema({
   to: { type: String, required: true },
   content: { type: String, required: true },
   createdAt: { type: Number, required: true, default: Date.now() },
-  image: { type: String, required: true },
+  imageName: { type: String, required: true },
 })
 
 const UserSchema = new Schema({
   userId: { type: String, required: true },
   username: { type: String, required: true },
-  image: { type: String, required: true },
-  sessionId: { type: String, required: true },
+  imageName: { type: String, required: true },
 })
 
 const RoomSchema = new Schema({
